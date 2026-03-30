@@ -133,12 +133,45 @@ CALL apoc.meta.graph()
 
 You'll see the schema — Actor, Issue, PullRequest, Comment, Repository — and all the edges between them.
 
+## Update: Three brains, all healthy
+
+Since the original post, two more brains came online:
+
+```
+BRAIN        TYPE      PG ROWS    NEO4J NODES    NEO4J EDGES
+iris-dev     iris      9,800+     2,000+         4,600+
+docent-dev   docent    355        407            941
+packmind-dev packmind  0          3              2 (schema ready)
+```
+
+**Iris ingested `halcyondude/dreamteams`** — the full project history. 816 issues, 499 PRs, 905 comments, 233 sub-issue relationships, 6,768 timeline events. Plus the learning repo data. She can now answer questions about the entire project.
+
+**Docent's brain is live** with the full plugin ecosystem graph — 218 skills, 66 commands, 13 plugins, 17 domains, 941 edges. Her ingestion script reads SKILL.md files directly via DuckDB as ground truth, building the graph with UNWIND + MERGE. She can answer "which plugins provide Neo4j skills?" or "show me the dependency chain for dt-wolfpack" by traversing her graph.
+
+**Den Mother's brain is provisioned** — 26 Postgres tables in the `packmind` schema, Neo4j constraints for 16 node types. Schema ready, awaiting data. Her ingestion runs through the `/devour` command and the Packmind MCP server.
+
+## The architecture
+
+Three layers, cleanly separated:
+
+```
+dt-brain (substrate)                    dreamteam-hq/brain
+    consumed by
+brain domains (data models + skills)    dreamteam-hq/brain-domains
+    consumed by
+agents (pick which domains they need)   dreamteam-hq/iris, /docent, /denmother
+```
+
+Each agent declares which brain domains it needs in `brain.yaml`. `dt-brain create` resolves those domains, composes all schemas, and provisions everything. Brain domains are reusable — Iris and Sia both consume `gharchive` and `github-project`.
+
+All agents are wired to their databases via `.mcp.json` — Postgres MCP + Neo4j MCP, auto-connecting when you open a Claude Code session in the agent's repo.
+
 ## What's next
 
-This is one small repo. The pipeline is the same for `halcyondude/dreamteams` (1000+ issues), all `dreamteam-hq/*` repos, and eventually GH Archive event streams (18 typed event tables waiting for data).
+- **Den Mother data ingestion** — run `/devour` against case documents to populate the packmind brain
+- **GHArchive events** — 18 typed event tables waiting for data from gharchive.org
+- **Git history** — mergestat-lite integration for commit-level analysis
+- **Brain wiring automation** — `dt-brain mount` to auto-generate `.mcp.json` from the registry
+- **Cross-brain federation** — DuckDB attaching multiple Postgres databases for cross-agent queries
 
-The brain platform supports multiple agents. Sia (our SRE agent, they/them) gets an ops brain next. Docent gets a plugin catalog brain. Den Mother gets a legal case brain. Each agent declares which knowledge domains it needs, and `dt-brain create` composes them.
-
-The four-store architecture is validated. The ingestion pipeline works. The graph is queryable. Iris has a brain, and she can see her project history.
-
-Now we feed her more.
+Three brains, all healthy. The proving ground proved the patterns. Now they ship.
